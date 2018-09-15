@@ -1,0 +1,100 @@
+
+<Directory "/usr/local/awstats/wwwroot"> Options None
+AllowOverride None Order allow,deny Allow fromall
+
+#下面为加入访问用户名和密码AuthType Basic
+AuthName "Restricted Files" # (Following line optional) AuthBasicProvider file
+AuthUserFile /usr/local/awstats/awstats-6.5/wwwroot/.htpasswd Require user han
+</Directory>
+
+在浏览器访问：http://192.168.56.200/manual 找到Auth
+如果需要密码访问，添加密码后，执行命令：htpasswd  /usr/local/awstats/awstats-6.5/wwwroot/.htpasswd han（用户名）重启服务
+#service httpd restart
+浏览器中输入http://192.168.56.200/awstats/awstats.pl 即可
+*******
+配置密码的文件可以直接yuminstall httpd-m*源码安装后读取manual文件
+Alias /man "/var/www/manual/"
+<Directory "/var/www/manual/"> Options None AllowOverride None
+Order allow,deny Allow fromall
+</Directory>
+在浏览器访问：http://192.168.56.200/man
+*******
+基于域名虚拟主机
+ip 192.168.56.200 www.luo.com
+ip 192.168.56.200 www.han.com
+# vim/usr/local/httpd/conf/httpd.conf ServerName 192.168.56.200:80
+Include /usr/local/httpd/conf/extra/httpd-vhosts.conf # vim/usr/local/httpd/conf/extra/httpd-vhosts.conf NameVirtualHost *:80
+<VirtualHost *:80>
+DocumentRoot /var/www/html/erverName www.luo.com
+ErrorLog /usr/local/httpd/logs/error_log
+<Directory /var/www/html/benet>
+
+Options None AllowOverride None Order allow,deny Allow fromall
+</Directory>
+</VirtualHost>
+<VirtualHost *:80>
+DocumentRoot /var/www/html/yan ServerName www.yan.com
+ErrorLog /usr/local/httpd/logs/error_log
+<Directory /var/www/html/han> Options None
+AllowOverride None Order allow,deny Allow fromall
+</Directory>
+</VirtualHost>
+
+
+基于IP的虚拟主机
+ip 192.168.56.200 www.benet.com
+ip 172.16.0.100 www.han.com在网卡上配置双IP地址
+# ifconfig eth0:1 172.16.0.100 netmask 255.255.255.0 # vim/usr/local/httpd/conf/extra/httpd-vhosts.conf NameVirtualHost *:80
+<VirtualHost 192.168.56.200:80> DocumentRoot /var/www/html/benet ServerName www.benet.com
+ErrorLog /usr/local/httpd/logs/error_log
+<Directory /var/www/html/benet> Options None
+AllowOverride None Order allow,deny Allow fromall
+</Directory>
+</VirtualHost>
+<VirtualHost 172.16.0.100:80> DocumentRoot /var/www/html/han ServerName www.han.com
+ErrorLog /usr/local/httpd/logs/error_log
+<Directory /var/www/html/han> Options None
+AllowOverride None Order allow,deny Allow fromall
+</Directory>
+</VirtualHost>
+
+
+基于端口的虚拟主机
+# vim/usr/local/httpd/conf/httpd.conf Listen 80
+Listen 8080
+
+
+<VirtualHost 192.168.56.200:80> DocumentRoot /var/www/html/benet ServerName www.benet.com
+
+ErrorLog /usr/local/httpd/logs/error_log
+<Directory /var/www/html/benet> Options None
+AllowOverride None Order allow,deny Allow fromall
+</Directory>
+</VirtualHost>
+<VirtualHost 192.168.56.200:8080>
+DocumentRoot /var/www/html/han ServerName www.han.com
+ErrorLog /usr/local/httpd/logs/error_log
+<Directory /var/www/html/han> Options None
+AllowOverride None Order allow,deny Allow fromall
+</Directory>
+</VirtualHost>
+
+
+
+
+
+格式：ab [-q] -c 并发请求数 -n 总的请求数 [http://]域名[:端口]/路径
+[root@www ~]# ulimit -n 3600
+[root@www ~]# cd /usr/local/apache2/bin/
+[root@www bin]# ./ab -q -c 2000 -n 4000 http://www.benet.com/
+在RHEL6系统中，默认允许打开的最大文件数为1024。由于使用ab测试工具时可能需要同时打开更多的文件，因此需要使用ulimit命令突破这个限制，如果不更改最大文件数限制，在使用ab工具时可能会出现“socket: Too many open files
+(24)”的错误提示信息，导致测试无法进行
+
+系统级：
+系统级设置对所有用户有效。可通过两种方式查看系统最大文件限制1 cat /proc/sys/fs/file-max
+2 sysctl -a 查看结果中fs.file-max这项的配置数量
+如果需要增加配置数量就修改/etc/sysctl.conf文件，配置fs.file-max属性，如果属性不存在就添加。配置完成后使用sysctl -p来通知系统启用这项配置
+用户级：
+Linux限制每个登录用户的可连接文件数。可通过 ulimit -n来查看当前有效设置。如果想修改这个值就使用 ulimit -n <setting number> 命令。
+
+对于文件描述符增加的比例，资料推荐是以2的幂次为参考。如当前文件描述符数量是1024，可增加到2048，如果不够，可设置  到4096，依此类推。
