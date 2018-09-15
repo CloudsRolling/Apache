@@ -1,0 +1,206 @@
+Apache-rewrite+13个经典案例
+Apache 重写规则的常见应用(rewrite)一:目的
+
+如何用Apache重写规则来解决一些常见的URL重写方法的问题，通过常见的  实例给用户一些使用重写规则的基本方法和线索。
+
+二:为什么需要用重写规则？
+一个网站，如果是长期需要放在internet上提供服务，必定会有不断地更新和维护，如临时转移到其它服务器进行维护，重新组织目录结构，变换URL甚至改变到新的域名等等， 而为了让客户不会因此受到任何影响，最好的方法就是使用Apache Rewrite Rule(重写规则)。
+
+三: 重写规则的作用范围
+1)可以使用在Apache主配置文件httpd.conf中
+2)可以使用在httpd.conf里定义的虚拟主机配置中
+3)可以使用在基本目录的跨越配置文件.htaccess中
+
+四:重写规则的应用条件
+只有当用户的WEB请求最终被导向到某台WEB服务器的Apache后台，则这台WEB服务器接受进来的请求，根据配置文件该请求是主配置还是虚拟主机，再根据用户在浏览器中请求的
+URI来配对重写规则并且根据实际的请求路径配对.htaccess中的重写规则。最后把请求的内容传回给用户，该响应可能有两种：
+
+1)对浏览器请求内容的外部重定向(Redirect)到另一个URL。
+让浏览器再次以新的URI发出请求(R=301或者R=302，临时的或是永久的重定向)
+如：一个网站有正规的URL和别名URL，对别名URL进行重定向到正规URL，或者网站改换    成了新的域名
+则把旧的域名重定向到新的域名(Redirect)
+
+2)也可能是由Apache内部子请求代理产生新的内容送回给客户[P,L]
+这是Apache内部根据重写后的URI内部通过代理模块请求内容并送回内容给客户，而客户端浏览器并
+不知道，浏览器中的URI不会被重写。但实际内容被Apache根据重写规则后的URI得到。 如：在公司防火墙上运行的Apache启动这种代理重写规则，代理对内部网段上的WEB服务   器的请求。
+
+五:重写规则怎样工作？
+我们假定在编译Apache时已经把mod_rewrite编译成模块，确信你的httpd.conf中有 LoadModule rewrite_module libexec/mod_rewrite.so
+并且在Addmodule中有 Addmodule mod_rewrite.c则可以使用重写规则。
+当外部请求来到Apache，Apache调用重写规则中的定义来重写由用户浏览器指定请求的
+URI，最后被重写的URI如果是重定向，则送由浏览器作再一次请求；如果是代理则把重写后的URI交给代理模块请求最终的内容(Content),最后把内容送回给浏览器。
+
+六: 何时使用.htaccess中的重写规则定义？
+假如你对你的的网站内容所在的服务器没有管理员权限，或者你的网站放在ISP的服务器上托管等等条件下，你无法改写主配置文件，然而你可以对你的WEB站点内容所在的目录有写权限，则你可以设置自己的.htaccess
+文件达到同样的目的。但你需要确定主配置文件中对你的网站所在的目录定义了下面的内容:
+
+Options Indexes FollowSymLinks AllowOverride all
+否则你的.htaccess不会工作。
+
+七: 应用举例
+假定Apache被编译安装在主机192.168.1.56的/usr/local/apache/ 目录下面，我们编译进了重写和代理模块。
+1)隐藏Apache下的某个目录，使得对该目录的任何请求都重定向到另一个文件。
+
+a> httpd.conf的实现方法
+我们放下面的部分到/usr/local/apache/conf/httpd.conf
+
+options Indexes followsymlinks allowoverride all  rewriteengine on
+rewritebase /                      rewriterule ^(.*)$ index.html.en [R=301]
+
+注：rewriteengine on 为重写引擎开关，如果设为off,则任何重写规则定义将不被应 用，该开关的另一好处就是如果为了临时拿掉重写规则，则改为off再重启动Apache即 可，不必将下面一条条的重写规则注释掉。
+rewritebase / 的作用是如果在下面的rewriterule定义中被重写后的部分(此处为文件 名index.html.en)前面没有/，则是相对目录，相对于这个rewritebase后面的定义也就是/usr/local/apache/htdocs/index.html.en,否则，如果此处没有rewritebase /这  一项，则被重写成
+[url]http://192.168.1.56/usr/local/apache/htdocs/manual/index.html.en [/url]，显然是不正确的。
+
+不过这里我们也可以不用rewritebase / , 而改为 rewriteengine on                      rewriterule ^(.*)$ /index.html.en [R=301]
+或者rewriteengine on
+rewriterule ^(.*)$ [url]http://192.168.1.56/index.html.en [/url][R=301]
+
+b>.htaccess的实现方法
+我们先放下面的部分到httpd.conf
+
+options Indexes followsymlinks allowoverride all
+
+然后放下面的部分到/usr/local/apache/htdocs/manual/.htaccess中 rewriteengine on
+rewritebase /                      rewriterule ^(.*)$ index.html.en [R=301]
+注：对文件.htaccess所作的任何改动不需要重启动Apache.
+
+问：要是把这个manual目录重定向到用户jephe的自己的主目录呢？用下面的.htaccess方案。
+rewriteengine on rewritebase /~jephe/ rewriterule ^(.*)$ $1 [R=301]
+则对manual目录下任何文件的请求被重定向到~jephe目录下相同文件的请求。
+
+2)转换[url]www.username.domain.com[/url]的对于username的主页请求为 [url]www.domain.com/username [/url]
+
+对于HTTP/1.1的请求包括一个Host: HTTP头，我们能用下面的规则集重写 [url]http://www.username.domain.com/anypath [/url]到/home/username/anypath
+Rewriteengine on
+rewritecond %{HTTP_HOST} ^www\.[^.]+\.host\.com$ rewriterule ^(.+) %{HTTP_HOST}$1 [C]        rewriterule ^www\.([^.]+)\.host\.com(.*) /home/$1$2
+注：
+rewritecond 条件重写规则，当满足后面定义的条件后才会应用下面的重写规则，
+rewritecond有各种变量，请查阅相关文档。
+
+3)防火墙上的重写规则代理内部网段上服务器的请求。NameVirtualhost 1.2.3.4
+
+servername [url]www.domain.com[/url] rewriteengine on
+proxyrequest on rewriterule ^/(.*)$ [url]http://192.168.1.3/$1 [/url][P,L]
+
+注：当外部浏览器请求[url]www.domain.com[/url]时被解析到IP地址1.2.3.4 ,Apache 交出
+mod_rewrite处理转换成
+[url]http://192.168.1.3/$1[/url]后再交由代理模块mod_proxy得到内容后传送回用户的浏览器。
+
+4)基本预先设定的转换MAP表进行重写rewritemap
+
+转换[url]www.domain.com/[/url]{countrycode}/anypath 到Map表中规定的URI,上面是虚拟主机中的定义
+
+rewritelog /usr/local/apache/logs/rewrite.log rewriteloglevel 9
+
+rewriteengine on proxyrequest on
+rewritemap sitemap txt:/usr/local/apache/conf/rewrite.map rewriterule ^/([^/]+)+/(.*)$ [url]http://%[/url]{REMOTE_HOST}::$1 [C] rewriterule (.*)::([a-z]+)$ ${sitemap:$2|[url]http://h.i.j.k/[/url]} [R=301,L]
+文件/usr/local/apache/conf/rewrite.map的内容如下:
+
+sg [url]http://a.b.c.d/ [/url] sh [url]http://e.f.g.h/ [/url]
+
+注： 当用户请求[url]http://www.domain.com/sg/anypath[/url]时被重写为 [url]http://a.b.c.d/anypath . [/url]
+当需要调试时请用rewritelog and rewriteloglevel 9联合,9为最大即得到最多的调试信息
+最小为1，最小的调试信息，默认为0，没有调试信息。
+sitemap的语法是${sitemap: LookupKey | Defaultvalue} ,有些书上把$写成了%是错误的
+
+
+--------------------------------------------------------13个经典案例-------------------------------
+
+1.去掉域名中的www标记
+复制代码代码如下:
+RewriteCond %{HTTP_HOST} !^jb51\.net$ [NC] RewriteRule .? http://jb51.net%{REQUEST_URI} [R=301,L]
+
+2.去掉www标记，但是保存子域名
+复制代码代码如下:
+RewriteCond %{HTTP_HOST} ^www\.(([a-z0-9_]+\.)?jb51\.net)$ [NC] RewriteRule .? http://%1%{REQUEST_URI} [R=301,L]
+这里，当匹配到1%变量以后，子域名才会在%2（内部原子）中抓取到，而我们需要的正是这个%1变量。
+
+3.给子域名加www标记
+复制代码代码如下:
+RewriteCond %{HTTP_HOST} ^([a-z.]+)?jb51\.net$ [NC] RewriteCond %{HTTP_HOST} !^www\. [NC]
+RewriteRule .? http://www.%1jb51.net%{REQUEST_URI} [R=301,L]
+这个规则抓取二级域名的%1变量，如果不是以www开始，那么就加www，以前的域名以及{REQUEST_URI}会跟在其后。
+
+4.防止图片盗链
+
+一些站长不择手段的将你的图片盗链在他们网站上，耗费你的带宽。你可以加一下代码阻止这种行为。复制代码代码如下:
+RewriteCond %{HTTP_REFERER} !^$             RewriteCond %{HTTP_REFERER} !^http://(www\.)?jb51\.net/ [NC] RewriteRule \.(gif|jpg|png)$ – [F]
+
+如果{HTTP_REFERER}值不为空，或者不是来自你自己的域名，这个规则用[F]FLAG阻止以gif|jpg|png 结尾的URL如果对这种盗链你是坚决鄙视的，你还可以改变图片，让访问盗链网站的用户知道该网站正在盗用你的图片。
+复制代码代码如下:
+RewriteCond %{HTTP_REFERER} !^$               RewriteCond %{HTTP_REFERER} !^http://(www\.)?jb51\.net/.*$ [NC]
+RewriteRule \.(gif|jpg|png)$ 你的图片地址[R=301,L]
+
+除了阻止图片盗链链接，以上规则将其盗链的图片全部替换成了你设置的图片。你还可以阻止特定域名盗链你的图片：
+复制代码代码如下:
+RewriteCond %{HTTP_REFERER} !^http://(www\.)?leech_site\.net/ [NC] RewriteRule \.(gif|jpg|png)$ – [F,L]
+这个规则将阻止域名黑名单上所有的图片链接请求。
+当然以上这些规则都是以{HTTP_REFERER}获取域名为基础的，如果你想改用成IP地址，用{REMOTE_ADDR}就可以了。
+
+5.如果文件不存在重定向到404页面
+如果你的主机没有提供404页面重定向服务，那么我们自己创建。复制代码代码如下:
+RewriteCond %{REQUEST_FILENAME} !-f RewriteCond %{REQUEST_FILENAME} !-d RewriteRule .? /404.php [L]
+
+这里-f匹配的是存在的文件名，-d匹配的存在的路径名。这段代码在进行404重定向之前，会判断你的文件名以及路径名是否存在。你还可以在404页面上加一个?url=$1参数：
+复制代码代码如下:
+RewriteRule ^/?(.*)$ /404.php?url=$1 [L]
+这样，你的404页面就可以做一些其他的事情，例如默认信心，发一个邮件提醒，加一个搜索，等等。
+
+6.重命名目录
+如果你想在网站上重命名目录，试试这个： 复制代码代码如下:
+RewriteRule ^/?old_directory/([a-z/.]+)$ new_directory/$1 [R=301,L]
+在规则里我添加了一个“.”（注意不是代表得所有字符，前面有转义符）来匹配文件的后缀名。
+
+7.将.html后缀名转换成.php
+前提是.html文件能继续访问的情况下，更新你的网站链接。复制代码代码如下:
+RewriteRule ^/?([a-z/]+)\.html$ $1.php [L]
+这不是一个网页重定向，所以访问者是不可见的。让他作为一个永久重定向（可见的），将FLAG修改[R=301,L]。
+
+8.创建无文件后缀名链接
+如果你想使你的PHP网站的链接更加简洁易记－或者隐藏文件的后缀名，试试这个:
+复制代码代码如下:
+RewriteRule ^/?([a-z]+)$ $1.php [L]
+
+如果网站混有PHP以及HTML文件，你可以用RewriteCond先判断该后缀的文件是否存在，然后进行替换：复制代码代码如下:
+RewriteCond %{REQUEST_FILENAME}.php -f RewriteRule ^/?([a-zA-Z0-9]+)$ $1.php [L] RewriteCond %{REQUEST_FILENAME}.html -f RewriteRule ^/?([a-zA-Z0-9]+)$ $1.html [L]
+如果文件是以.php为后缀，这条规则将被执行。
+
+9.检查查询变量里的特定参数
+如果在URL里面有一个特殊的参数，你可用RewriteCond鉴别其是否存在：复制代码代码如下:
+RewriteCond %{QUERY_STRING} !uniquekey=                RewriteRule ^/?script_that_requires_uniquekey\.php$ other_script.php [QSA,L]
+
+以上规则将检查{QUERY_STRING}里面的uniquekey参数是否存在，如果{REQUEST_URI}值为script_that_requires_uniquekey，将会定向到新的URL。
+
+10.删除查询变量
+
+Apache的mod_rewrite模块会自动辨识查询变量，除非你做了以下改动：
+a).分配一个新的查询参数（你可以用[QSA,L]FLAG保存最初的查询变量）
+b).在文件名后面加一个“?”（比如index.php?）。符号“?”不会在浏览器的地址栏里显示。
+
+11.用新的格式展示当前URI
+如果这就是我们当前正在运行的URLs：/index.php?id=nnnn。我们非常希望将其更改成/nnnn并且让搜索引擎以新格式展现。首先， 我们为了让搜索引擎更新成新的，得将旧的URLs重定向到新的格式，但是，我们还得保证以前的index.php照样能够运行。是不是被我搞迷糊了？
+实现以上功能，诀窍就在于在查询变量中加了一个访问者看不到的标记符“marker”。我们只将查询变量中没有出现“marker”标记的链接进行重定向， 然后将原有的链接替换成新的格式，并且通过[QSA]FLAG在已有的参数加一个“marker”标记。以下为实现的方式：复制代码代码如下:
+RewriteCond %{QUERY_STRING} !marker  RewriteCond %{QUERY_STRING} id=([-a-zA-Z0-9_+]+) RewriteRule ^/?index\.php$ %1? [R=301,L]
+RewriteRule ^/?([-a-zA-Z0-9_+]+)$ index.php?marker &id=$1 [L]
+这里，原先的URL：http://www.jb51.net/index.php?id=nnnn,不包含marker，所以被第一个规则永久重定向到
+http://www.sensen.net/nnnn，第二个规则将http://www.sensen.net/nnnn反定向到http: //www.sensen.net/index.php?
+marker&id=nnnn，并且加了marker以及id=nnnn两个变量，最后mod_rewrite就开始进行处理过程。
+第二次匹配，marker被匹配，所以忽略第一条规则，这里有一个“.”字符会出现在http://www.jb51.net/index.php?marker&id=nnnn中，所以第二条规则也会被忽略，这样我们就完成了。
+注意，这个解决方案要求Apache的一些扩展功能，所以如果你的网站放于在共享主机中会遇到很多障碍。
+
+12.保证安全服务启用
+Apache可以用两种方法辨别你是否开启了安全服务，分别引用{HTTPS}和{SERVER_PORT}变量：复制代码代码如下:
+RewriteCond %{REQUEST_URI} ^secure_page\.php$      RewriteCond %{HTTPS} !on                         RewriteRule ^/?(secure_page\.php)$ https://www.jb51.net/$1 [R=301,L]
+
+以上规则测试{REQUEST_URI}值是否等于我们的安全页代码，并且{HTTPS}不等于on。如果这两个条件同时满足，请求将被重定向到安全服务URI.另外你可用{SERVER_PORT}做同样的测试，443是常用的安全服务端口
+复制代码代码如下:
+RewriteCond %{REQUEST_URI} ^secure_page\.php$      RewriteCond %{SERVER_PORT} !^443$                RewriteRule ^/?(secure_page\.php)$ https://www.jb51.net/$1 [R=301,L]
+
+13.在特定的页面上强制执行安全服务
+遇到同一个服务器根目录下分别有一个安全服务域名和一个非安全服务域名，所以你就需要用RewriteCond 判断安全服务端口是否占用，并且只将以下列表的页面要求为安全服务：
+复制代码代码如下:
+RewriteCond %{SERVER_PORT} !^443$                            RewriteRule ^/?(page1|page2|page3|page4|page5)$ https://www.jb51.net/%1[R=301,L]
+
+以下是怎样将没有设置成安全服务的页面返回到80端口： 复制代码代码如下:
+RewriteCond %{ SERVER_PORT } ^443$                                RewriteRule !^/?(page6|page7|page8|page9)$http://www.jb51.net%{REQUEST_URI} [R=301,L]
+其实Rewrite里运用最多的还应该是正则表达式，如果了解点儿正则的话，写起这个规则还是比较简单的。
