@@ -25,9 +25,9 @@ ip 192.168.56.200 www.han.com
 # vim/usr/local/httpd/conf/httpd.conf ServerName 192.168.56.200:80
 Include /usr/local/httpd/conf/extra/httpd-vhosts.conf # vim/usr/local/httpd/conf/extra/httpd-vhosts.conf NameVirtualHost *:80
 <VirtualHost *:80>
-DocumentRoot /var/www/html/erverName www.luo.com
+DocumentRoot /var/www/html/luo  ServerName www.luo.com
 ErrorLog /usr/local/httpd/logs/error_log
-<Directory /var/www/html/benet>
+<Directory /var/www/html/luo>
 
 Options None AllowOverride None Order allow,deny Allow fromall
 </Directory>
@@ -35,25 +35,25 @@ Options None AllowOverride None Order allow,deny Allow fromall
 <VirtualHost *:80>
 DocumentRoot /var/www/html/yan ServerName www.yan.com
 ErrorLog /usr/local/httpd/logs/error_log
-<Directory /var/www/html/han> Options None
+<Directory /var/www/html/yan> Options None
 AllowOverride None Order allow,deny Allow fromall
 </Directory>
 </VirtualHost>
 
 
 基于IP的虚拟主机
-ip 192.168.56.200 www.benet.com
-ip 172.16.0.100 www.han.com在网卡上配置双IP地址
+ip 192.168.56.200 www.luo.com
+ip 172.16.0.100 www.yan.com在网卡上配置双IP地址
 # ifconfig eth0:1 172.16.0.100 netmask 255.255.255.0 # vim/usr/local/httpd/conf/extra/httpd-vhosts.conf NameVirtualHost *:80
-<VirtualHost 192.168.56.200:80> DocumentRoot /var/www/html/benet ServerName www.benet.com
+<VirtualHost 192.168.56.200:80> DocumentRoot /var/www/html/benet ServerName www.luo.com
 ErrorLog /usr/local/httpd/logs/error_log
-<Directory /var/www/html/benet> Options None
+<Directory /var/www/html/luo> Options None
 AllowOverride None Order allow,deny Allow fromall
 </Directory>
 </VirtualHost>
-<VirtualHost 172.16.0.100:80> DocumentRoot /var/www/html/han ServerName www.han.com
+<VirtualHost 172.16.0.100:80> DocumentRoot /var/www/html/yan ServerName www.yan.com
 ErrorLog /usr/local/httpd/logs/error_log
-<Directory /var/www/html/han> Options None
+<Directory /var/www/html/yan> Options None
 AllowOverride None Order allow,deny Allow fromall
 </Directory>
 </VirtualHost>
@@ -64,17 +64,17 @@ AllowOverride None Order allow,deny Allow fromall
 Listen 8080
 
 
-<VirtualHost 192.168.56.200:80> DocumentRoot /var/www/html/benet ServerName www.benet.com
+<VirtualHost 192.168.56.200:80> DocumentRoot /var/www/html/luo ServerName www.luo.com
 
 ErrorLog /usr/local/httpd/logs/error_log
-<Directory /var/www/html/benet> Options None
+<Directory /var/www/html/luo> Options None
 AllowOverride None Order allow,deny Allow fromall
 </Directory>
 </VirtualHost>
 <VirtualHost 192.168.56.200:8080>
-DocumentRoot /var/www/html/han ServerName www.han.com
+DocumentRoot /var/www/html/yan ServerName www.yan.com
 ErrorLog /usr/local/httpd/logs/error_log
-<Directory /var/www/html/han> Options None
+<Directory /var/www/html/yan> Options None
 AllowOverride None Order allow,deny Allow fromall
 </Directory>
 </VirtualHost>
@@ -86,7 +86,7 @@ AllowOverride None Order allow,deny Allow fromall
 格式：ab [-q] -c 并发请求数 -n 总的请求数 [http://]域名[:端口]/路径
 [root@www ~]# ulimit -n 3600
 [root@www ~]# cd /usr/local/apache2/bin/
-[root@www bin]# ./ab -q -c 2000 -n 4000 http://www.benet.com/
+[root@www bin]# ./ab -q -c 2000 -n 4000 http://www.yan.com/
 在RHEL6系统中，默认允许打开的最大文件数为1024。由于使用ab测试工具时可能需要同时打开更多的文件，因此需要使用ulimit命令突破这个限制，如果不更改最大文件数限制，在使用ab工具时可能会出现“socket: Too many open files
 (24)”的错误提示信息，导致测试无法进行
 
