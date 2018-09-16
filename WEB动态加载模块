@@ -1,0 +1,114 @@
+
+添加步骤：
+如要额外安装cgi，先找到mod_cgi.c及mod_cgid.c。一般在apache安装包目录下，如 ./httpd-2.2.25/modules/generators 。
+#编译安装 cgi模块
+
+cd /usr/local/src/Apache-2.2.25/httpd-2.2.25/modules/generators
+/usr/local/apache/bin/apxs -i -a -c mod_cgi.c
+
+编译成功后会输出：
+cd /usr/local/src/Apache-2.2.25/httpd-2.2.25/modules/generators
+/usr/local/apache/bin/apxs -i -a -c mod_cgi.c
+.... #省略掉了前部分内容
+
+----------------------------------------------------------------------
+chmod 755 /usr/local/apache/modules/mod_cgi.so
+
+[activating module `cgi' in /usr/local/apache/conf/httpd.conf] #这行表示，在httpd.conf中已经加载了cgi module
+
+
+#编译安装 cgid模板
+cd /usr/local/src/Apache-2.2.25/httpd-2.2.25/modules/generators
+/usr/local/apache/bin/apxs -i -a -c mod_cgid.c
+
+编译成功后会输出：
+.... #省略掉了前部分内容
+----------------------------------------------------------------------
+chmod 755 /usr/local/apache/modules/mod_cgid.so
+[activating module `cgid' in /usr/local/apache/conf/httpd.conf] #这行表示，在httpd.conf中已经加载了cgid module
+
+apxs参数含义:
+-i 表示需要执行安装操作。
+-a 自动增加一个LoadModule行到httpd.conf文件中，以激活此模块，或者，如果此行已经存在，则启用之。
+-n 增加或启用的模块名称。
+# 再次查看下配置文件 httpd.conf：
+LoadModule deflate_module modules/mod_deflate.so
+LoadModule expires_module modules/mod_expires.so
+LoadModule headers_module modules/mod_headers.so
+LoadModule ssl_module modules/mod_ssl.so
+LoadModule rewrite_module modules/mod_rewrite.so
+LoadModule php5_module modules/libphp5.so
+LoadModule cgi_module modules/mod_cgi.so
+LoadModule cgid_module modules/mod_cgid.so
+
+cgi与cgid模块被加载。
+#重启下Apache
+service httpd restart
+
+结果报如下错误：
+[root@localhost PHP-5.3.27]# service httpd restart
+停止 httpd： [确定]
+启动 httpd：httpd: Syntax error on line 61 of /usr/local/apache/conf/httpd.conf: module cgi_module is built-in and can't be loaded
+[失败]
+提示说：cgi_module 是内建模块，即无需手动加载，所以我们把“LoadModule cgi_module modules/mod_cgi.so”注释掉即可！
+用命令 apachectl -l 去查看下哪些模块被内建了
+
+
+[root@localhost generators]# httpd -l
+Compiled in modules:
+core.c
+mod_authn_file.c
+mod_authn_default.c
+mod_authz_host.c
+mod_authz_groupfile.c
+mod_authz_user.c
+mod_authz_default.c
+mod_auth_basic.c
+mod_include.c
+mod_filter.c
+mod_log_config.c
+mod_env.c
+mod_setenvif.c
+mod_version.c
+prefork.c
+http_core.c
+mod_mime.c
+mod_status.c
+mod_autoindex.c
+mod_asis.c
+mod_cgi.c
+mod_negotiation.c
+mod_dir.c
+mod_actions.c
+mod_userdir.c
+mod_alias.c
+mod_so.c
+
+[root@localhost generators]#
+从上面可看出，mod_cgi.c 果然被内建了！
+新增：
+/usr/local/httpd/modules/mod_userdir.so
+测试新功能（用户拥有独立网页）：
+
+•1. 修改httpd.conf，启用个人主页功能
+[root@www ~]# vi /etc/httpd/conf/httpd.conf
+<IfModule mod_userdir.c>
+#UserDir disabled
+UserDir public_html
+<Directory /home/*/public_html>
+AllowOverride none
+Options none
+Order allow,deny
+Allow from all
+</Directory>
+</IfModule>
+2. 建立个人主页测试网页
+~/public_html/index.html
+添加权限：chmod o+x /home/jerry/
+3. 重新启动httpd服务
+/etc/init.d/httpd restart
+4. 修改sebool值
+/getsebool -a | grep httpd | grep home
+setsebool -P httpd_enable_homedirs on
+4. 访问测试
+http://www.yeslab.com/~user
