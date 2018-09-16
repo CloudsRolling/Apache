@@ -1,0 +1,143 @@
+PHP安装－phpMyAdmin+Discuz
+基于Apache和MySQL安装完成之后继续安装PHP。以构建LAMP动态网站平台。
+http：./configure --prefix=/usr/local/httpd --enable-rewrite --enable-so --enable-charset-lite --enable-cgi
+
+一、安装PHP
+[root@localhost ~]# tar -zxvf libmcrypt-2.5.8.tar.gz -C /usr/src/
+[root@localhost ~]# cd /usr/src/libmcrypt-2.5.8/
+[root@localhost ~]# ./configure && make && make install
+[root@localhost ~]# ln -s /usr/local/lib/libmcrypt.* /usr/lib/
+[root@localhost ~]# tar -zxvf mhash-0.9.9.9.tar.gz -C /usr/src/
+[root@localhost ~]# cd /usr/src/mhash-0.9.9.9/
+[root@localhost ~]# ./configure && make && make install
+[root@localhost ~]# ln -s /usr/local/lib/libmhash* /usr/lib/
+[root@localhost ~]# tar -zxvf mcrypt-2.6.8.tar.gz -C /usr/src/
+[root@localhost ~]# cd /usr/src/mcrypt-2.6.8/
+[root@localhost ~]# ./configure(如果报错,请执行下面的命令)
+[root@localhost ~]# export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+[root@localhost ~]# ./configure && make && make install
+[root@localhost ~]# tar -zxvf php-5.3.28.tar.gz -C /usr/src/
+[root@localhost ~]# cd /usr/src/php-5.3.28/
+[root@localhost ~]# ./configure --prefix=/usr/local/php --with-mcrypt --withapxs2=/
+usr/local/httpd/bin/apxs --with-mysql=/usr/local/mysql --with-config-filepath=/
+usr/local/php --enable-mbstring
+[root@localhost ~]# make && make install
+或者：yum install libxml2-devel
+[root@localhost ~]#cp /usr/src/php-5.3.28/php.ini-development /usr/local/php/php.ini
+[root@localhost ~]#vim /usr/local/php/php.ini
+修改:
+default_charset = "utf-8”(修改)
+file_uploads = On
+upload_max_filesize = 2M
+max_file_uploads = 20
+post_max_size = 8M
+short_open_tag = On(修改)
+
+[root@localhost ~]#tar -zxvf ZendGuardLoader-php-5.3-linux-glibc23-x86_64.tar.gz -C /usr/src/
+[root@localhost ~]#cp /usr/src/ZendGuardLoader-php-5.3-linux-glibc23-x86_64/php- 5.3.x/ZendGuardLoader.so /usr/local/php/lib/php/
+[root@localhost ~]#vim /usr/local/php/php.ini
+添加:
+zend_extension=/usr/local/php5/lib/php/ZendGuardLoader.so
+zend_loader.enable=1
+[root@localhost ~]#vim /usr/local/httpd/conf/httpd.conf 修改:
+LoadModule php5_module modules/libphp5.so
+AddType application/x-httpd-php .php
+DirectoryIndex index.php index.html
+[root@localhost ~]#service httpd stop
+[root@localhost ~]#service httpd start
+[root@localhost ~]#netstat -anpt |grep httpd
+验证:
+[root@localhost ~]#cd /usr/local/httpd/htdocs/
+[root@localhost htdocs]#mv index.html index.html_back
+
+1、验证PHP与Apache连接:
+[root@localhost htdocs]#vim index.php
+添加:
+<?php
+phpinfo( );
+?>
+
+[root@localhost htdocs]#curl http://192.168.1.1/ &
+
+1、验证PHP与MySQL连接:
+[root@localhost htdocs]#mv index.php index.php_back
+[root@localhost htdocs]#vim index.php
+添加:
+<?php
+$link=mysql_connect('localhost','root','123456');
+if($link) echo "恭喜你,数据库连接成功啦!!";
+mysql_close();
+?>
+或者
+<?php
+$link=mysql_connect("localhost","root","123");
+if(!$link) echo "FAILD!连接错误，用户名密码不对";
+else echo "OK!可以连接";
+?>
+
+－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+安装phpMyAdmin
+[root@localhost ~]#tar -zxvf phpMyAdmin-4.2.5-all-languages.tar.gz -C /usr/src/
+[root@localhost ~]#cd /usr/src/
+[root@localhost ~]#cp -r phpMyAdmin-4.2.5-all-languages/ /usr/local/httpd/htdocs/phpMyAdmin
+[root@localhost ~]#cd /usr/local/httpd/htdocs/phpMyAdmin
+[root@localhost ~]#cp config.sample.inc.php config.inc.php
+[root@localhost ~]#vim config.inc.php
+修改:
+$cfg['blowfish_secret'] = 'a8b7c6d';
+
+
+验证:
+[root@localhost ~]#firefox http://192.168.1.1/phpMyAdmin &
+修改处解释：
+在config.inc.php中
+找到 $cfg['PmaAbsoluteUri']
+修改你将用于让虚机用户访问的phpMyAdmin的网址
+如：$cfg['PmaAbsoluteUri'] = 'http://ip/phpmyadmin/'; 或$cfg['PmaAbsoluteUri'] = 'http://ip:8899' (写出访问phpMyAdmin的绝对URL)
+还有这些更改的地方:
+$cfg['Servers'][$i]['host'] = 'localhost';（通常用默认，也有例外）
+$cfg['Servers'][$i]['auth_type'] = 'cookie'; // Authentication method (config, http or cookie based)?
+用cookie。因为是网络上使用所以这里选择cookie
+$cfg['Servers'][$i]['user'] = 'root'; // MySQL user
+$cfg['Servers'][$i]['password'] = ''; // MySQL password (only needed自己机里不用设置)
+注：$cfg['blowfish_secret'] = '';
+本机的话不需要设置，但是网络的话需要设置成cookie：
+$cfg['blowfish_secret'] = 'cookie';
+设置完毕。
+
+3、打开IE,输入http://ip/phpmyadmin/(当然你设置不同就用那个网址。),输入用户名和密码后，用phpmyadmin浏览相应的mysql数据库；
+如果设置$cfg['Servers'][$i]['auth_type'] = 'cookie'; 所以显示会要求输入帐号
+
+4、$cfg['DefaultLang'] = 'zh'; （这里是选择语言，zh代表简体中文的意思）
+---------------------------------------------------
+
+安装Discuz论坛
+我把论坛的zip压缩包Discuz_X1.5_SC_UTF8.zip放在了/root目录，所以回到root的用户目录，把压缩包解压出来。
+[root@linux ~]# unzip Discuz_X1.5_SC_UTF8.zip
+[root@linux ~]# ls
+anaconda-ks.cfg Discuz_X1.5_SC_UTF8.zip install.log.syslog upload
+bbs install.log readme utility
+解压出来得到一个upload文件夹，把upload里面的文件都移到/var/www/html/目录。
+[root@linux ~]# mv upload/* /var/www/html/
+[root@linux ~]# ls /var/www/html
+admin.php crossdomain.xml home.php plugin.php static
+……
+cp.php group.php misc.php source userapp.php
+
+[root@linux ~]# chmod -R 777 /var/www/html/ 给论坛的所有文件都添加可读可写可执行的权限（注意：这里我是为了方便，把论坛
+的所有文件何目录都设成777是不科学的，实际情况并不需要全部777，把 /config/、/data/、/uc_client/data、/uc_server/data设置成
+777就可以了）
+[root@linux ~]# ls -l /var/www/html
+total 104
+-rwxrwxrwx 1 root root 2413 Oct 20 16:15 admin.php
+drwxrwxrwx 7 root root 4096 Oct 20 16:15 api
+-rwxrwxrwx 1 root root 741 Oct 20 16:15 api.php
+……………..
+[root@linux ~]# mysqladmin -u root password 123456 设置mysql的root用户密码为123456
+[root@linux ~]# mysql -u root -p
+Enter password: （这里输入你设置的密码，输入是看不见的）
+Welcome to the MySQL monitor. Commands end with ; or \g.
+已经进入mysql了
+mysql> grant all on *.* to root@”%” identified by “123456”; 授权,允许root用户使用密码123456访问数据库。
+
+在浏览器中输入：http://192.168.56.200/install 进行安装
